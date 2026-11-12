@@ -15,7 +15,7 @@ target_compile_options(nhm_core PRIVATE -Wall -Wextra)
 find_package(OpenCV 4.5.4 REQUIRED COMPONENTS core imgproc imgcodecs objdetect dnn)
 find_package(Threads REQUIRED)
 
-add_library(nhm_tracker STATIC src/tracker.cpp)
+add_library(nhm_tracker STATIC src/tracker.cpp src/frame-worker.cpp)
 target_include_directories(nhm_tracker PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(nhm_tracker PUBLIC nhm_core ${OpenCV_LIBS} Threads::Threads)
 target_compile_options(nhm_tracker PRIVATE -Wall -Wextra)
@@ -33,6 +33,9 @@ if(BUILD_TESTING)
     NHM_MODEL="${CMAKE_SOURCE_DIR}/data/models/face_detection_yunet_2023mar.onnx"
     NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/messi5.jpg")
   add_test(NAME tracker COMMAND test_tracker)
+  add_executable(test_frame_worker tests/test_main.cpp tests/test_frame_worker.cpp)
+  target_link_libraries(test_frame_worker PRIVATE nhm_tracker)
+  add_test(NAME frame_worker COMMAND test_frame_worker)
 endif()
 
 if(NHM_BUILD_PLUGIN)

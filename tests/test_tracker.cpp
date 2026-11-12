@@ -50,3 +50,26 @@ TEST(async_submit_publishes_result) {
   CHECK(r.seq > 0);
   CHECK(r.has_face);
 }
+
+TEST(async_submit_with_padded_rows) {
+  FaceTracker t;
+  CHECK(t.load(NHM_MODEL));
+  cv::Mat img = cv::imread(NHM_FACE_IMG), rgba;
+  cv::cvtColor(img, rgba, cv::COLOR_BGR2RGBA);
+  cv::Mat padded(rgba.rows, rgba.cols + 16, CV_8UC4, cv::Scalar(0, 0, 0, 0));
+  rgba.copyTo(padded(cv::Rect(0, 0, rgba.cols, rgba.rows)));
+  t.submit(padded.data, rgba.cols, rgba.rows, static_cast<int>(padded.step), 1.f);
+  TrackResult r;
+  for (int i = 0; i < 200 && r.seq == 0; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    r = t.latest();
+  }
+  CHECK(r.has_face);
+}
+
+TEST(load_is_idempotent) {
+  FaceTracker t;
+  CHECK(t.load(NHM_MODEL));
+  CHECK(t.load("/nonexistent/model.onnx"));  // already loaded: unchanged
+  CHECK(t.loaded());
+}
