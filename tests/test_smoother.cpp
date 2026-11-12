@@ -97,3 +97,18 @@ TEST(set_smoothing_clamps) {
   SmoothedPose r = s.update(&q, 1.0 / 30.0);
   CHECK_NEAR(r.pose.cx, 5, 1e-3);
 }
+
+TEST(reappear_mid_fade_keeps_smoothing) {
+  PoseSmoother s(0.6f);
+  MaskPose p = pose_at(10), q = pose_at(300);
+  s.update(&p, 0.0);
+  s.update(&p, 0.15);  // opacity 1, last seen 0.15
+  // Lose the face and step through the fade in 1/30 s updates.
+  SmoothedPose partial{};
+  for (int k = 1; k <= 21; ++k) partial = s.update(nullptr, 0.15 + k / 30.0);
+  CHECK(partial.opacity > 0 && partial.opacity < 1);
+  // Face reappears at a far position while still partly faded.
+  SmoothedPose r = s.update(&q, 0.85 + 1.0 / 30.0);
+  CHECK(r.pose.cx > 10 && r.pose.cx < 300);  // moved only partway, no snap
+  CHECK(r.opacity > partial.opacity && r.opacity < 1);
+}
