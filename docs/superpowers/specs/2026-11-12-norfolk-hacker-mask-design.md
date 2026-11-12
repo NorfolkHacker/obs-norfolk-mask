@@ -61,13 +61,17 @@ Four units, each testable on its own:
      `0.75 + 0.25·sin(2π·speed·t)`.
 
 4. **Artwork (`data/`)**
-   - Original SVGs authored for this project, rendered to transparent PNGs:
+   - Original vector art drawn by `art/make_art.py` (pycairo — no SVG
+     converter is installed), rendered to transparent PNGs:
      - `faceplate.png` — silver/gunmetal segmented plate (forehead, cheek
        plates, jaw/mouth grille), purple neon edge lines and circuit traces,
        dark central eye socket.
      - `headphone_l.png`, `headphone_r.png` — dark cups with purple neon rings.
    - Each PNG has a documented anchor point (eye socket centre / ear centre)
-     in a small header constant so placement is data-driven.
+     in `src/layout.hpp` so placement is data-driven.
+   - Sprites are drawn as explicit 4-corner quads computed by a pure
+     `layout` function (no reliance on OBS matrix-stack ordering), which
+     the offline preview tool reuses.
 
 ## Settings (OBS properties)
 
