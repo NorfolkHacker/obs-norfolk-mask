@@ -56,6 +56,18 @@ purple neon outline around you.
 
 Face detection: YuNet (`face_detection_yunet_2023mar.onnx`) from
 [opencv_zoo](https://github.com/opencv/opencv_zoo), MIT licence (see `data/models/LICENSE`).
-Test photo `tests/data/messi5.jpg` from OpenCV sample data.
+Test photo `tests/data/face.jpg`: official NASA portrait of astronaut Sunita Williams (public domain, US government work), via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Sunita_Williams.jpg), resized to 480×600.
 
 Person segmentation: PP-HumanSeg (human_segmentation_pphumanseg_2023mar.onnx) from opencv_zoo, Apache-2.0 (see `data/models/LICENSE-pphumanseg`).
+
+## Licence
+
+Copyright (C) 2026 Norfolk Hacker.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version. See [LICENSE](LICENSE).
+
+The bundled models keep their own licences: YuNet (MIT, `data/models/LICENSE`)
+and PP-HumanSeg (Apache-2.0, `data/models/LICENSE-pphumanseg`).

@@ -23,8 +23,8 @@ TEST(detects_face_in_sample_photo) {
   CHECK(r.has_face);
   const Vec2 re = r.lm.pts[kRightEye], le = r.lm.pts[kLeftEye];
   CHECK(re.x < le.x);                      // right eye is on image-left
-  CHECK(le.x - re.x > 6 && le.x - re.x < 25);
-  CHECK(re.x > 200 && re.x < 280 && re.y > 80 && re.y < 130);
+  CHECK(le.x - re.x > 25 && le.x - re.x < 45);
+  CHECK(re.x > 185 && re.x < 220 && re.y > 165 && re.y < 200);
 }
 
 TEST(scale_to_src_multiplies_coords) {

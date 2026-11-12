@@ -38,7 +38,7 @@ if(BUILD_TESTING)
   target_link_libraries(test_tracker PRIVATE nhm_tracker)
   target_compile_definitions(test_tracker PRIVATE
     NHM_MODEL="${CMAKE_SOURCE_DIR}/data/models/face_detection_yunet_2023mar.onnx"
-    NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/messi5.jpg")
+    NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/face.jpg")
   add_test(NAME tracker COMMAND test_tracker)
   add_executable(test_frame_worker tests/test_main.cpp tests/test_frame_worker.cpp)
   target_link_libraries(test_frame_worker PRIVATE nhm_tracker)
@@ -47,7 +47,7 @@ if(BUILD_TESTING)
   target_link_libraries(test_segmenter PRIVATE nhm_segmenter)
   target_compile_definitions(test_segmenter PRIVATE
     NHM_SEG_MODEL="${CMAKE_SOURCE_DIR}/data/models/human_segmentation_pphumanseg_2023mar.onnx"
-    NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/messi5.jpg")
+    NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/face.jpg")
   add_test(NAME segmenter COMMAND test_segmenter)
 endif()
 

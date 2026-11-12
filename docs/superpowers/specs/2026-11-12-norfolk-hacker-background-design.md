@@ -111,7 +111,7 @@ gamma space). Same as the mask sprites.
 - Unit (CTest): `MaskSmoother` (snap, EMA, clamp, size change), `to_u8`
   (rounding, clamping), `FrameWorker` (newest-frame-wins, exception in job
   doesn't kill the thread, clean shutdown), `PersonSegmenter` (bad model fails
-  cleanly; `tests/data/messi5.jpg` → person region > 0.5, corners < 0.2;
+  cleanly; `tests/data/face.jpg` (public-domain NASA portrait) → person region > 0.5, corners < 0.2;
   async submit publishes), existing 25 tests still pass after the refactors.
 - Offline: `bg-preview <model> <in> <out>` writes the cut-out composited over a
   flat purple with the outline, for eyeballing edge quality.
