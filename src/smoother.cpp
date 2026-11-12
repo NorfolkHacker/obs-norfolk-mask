@@ -12,8 +12,16 @@ void PoseSmoother::set_smoothing(float smoothing) {
 }
 
 SmoothedPose PoseSmoother::update(const MaskPose *target, double now) {
-  const double dt = last_time_ < 0 ? 0.0 : std::max(0.0, now - last_time_);
+  double dt = last_time_ < 0 ? 0.0 : std::max(0.0, now - last_time_);
   last_time_ = now;
+
+  // Long gap (source hidden, scene switch, filter toggled): drop all state so
+  // the next valid pose snaps into place and fades in rather than popping.
+  if (dt > kHoldSeconds + kFadeOutSeconds) {
+    tracking_ = false;
+    opacity_ = 0.f;
+    dt = 0.0;  // the gap must not count towards the fade-in
+  }
 
   if (target && target->scale > 0) {
     if (!tracking_) {

@@ -29,7 +29,7 @@ Four units, each testable on its own:
    - Input: 5 landmarks (right eye, left eye, nose, right mouth, left mouth)
      plus detector confidence, in normalized frame coordinates.
    - Output: `MaskPose { cx, cy, scale, roll, yaw, visible }`.
-     - centre: weighted point between eye midpoint and nose
+     - centre: eye midpoint plus a vertical offset along the face's down direction
      - scale: inter-eye distance × user size factor
      - roll: `atan2` of the eye-to-eye vector
      - yaw: nose horizontal offset from eye midpoint ÷ inter-eye distance, clamped to [-1, 1]
@@ -53,8 +53,8 @@ Four units, each testable on its own:
      frame (avoids GPU stall) → hands pixels to the tracker.
    - Reads the latest landmarks → `pose` → `PoseSmoother` → draws the source
      then the mask layers on top with `gs_matrix_*` transforms.
-   - Yaw effect: face plate is scaled horizontally by `1 - 0.35·|yaw|` and
-     shifted toward the turn; the near headphone moves outward/grows
+   - Yaw effect: face plate is squashed horizontally by `1 - 0.3·|yaw|` around the
+     eye-socket anchor (no horizontal shift); the near headphone moves outward/grows
      slightly, the far one moves in/shrinks and is drawn behind the plate.
    - Cyclops eye glow: a custom `.effect` shader draws a radial glow at the
      eye socket, colour from settings, intensity pulsing

@@ -40,6 +40,11 @@ struct MaskFilter {
   float pulse_hz = 0.8f;
   bool show_headphones = true;
   bool debug_points = false;
+
+  // OBS does not render hidden sources, so after a gap the tracker still holds a
+  // pre-gap detection. Results with seq <= stale_seq are ignored.
+  double last_render = -1;
+  uint64_t stale_seq = 0;
 };
 
 void load_image(gs_image_file3_t *img, const char *name) {
@@ -271,17 +276,20 @@ void mf_render(void *data, gs_effect_t *) {
 
   // 5. Pose → smoothing → mask.
   const TrackResult r = f->tracker.latest();
+  const double now = static_cast<double>(os_gettime_ns()) / 1e9;
+  if (f->last_render >= 0 && now - f->last_render > 0.25) f->stale_seq = r.seq;
+  f->last_render = now;
+  const bool fresh = r.seq > f->stale_seq;
   MaskPose pose;
   const MaskPose *target_pose = nullptr;
-  if (r.has_face) {
+  if (r.has_face && fresh) {
     pose = compute_pose(r.lm, f->v_offset);
     if (pose.scale > 0) target_pose = &pose;
   }
   f->smoother.set_smoothing(f->smoothing);
-  const double now = static_cast<double>(os_gettime_ns()) / 1e9;
   const SmoothedPose sp = f->smoother.update(target_pose, now);
   if (sp.opacity > 0.f) draw_mask(f, sp, now);
-  if (f->debug_points && r.has_face) draw_points(r.lm);
+  if (f->debug_points && r.has_face && fresh) draw_points(r.lm);
 }
 
 }  // namespace

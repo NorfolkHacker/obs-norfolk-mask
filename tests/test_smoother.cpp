@@ -112,3 +112,17 @@ TEST(reappear_mid_fade_keeps_smoothing) {
   CHECK(r.pose.cx > 10 && r.pose.cx < 300);  // moved only partway, no snap
   CHECK(r.opacity > partial.opacity && r.opacity < 1);
 }
+
+TEST(long_gap_resets_and_fades_in_at_new_position) {
+  PoseSmoother s(0.6f);
+  MaskPose p = pose_at(10), q = pose_at(300);
+  s.update(&p, 0.0);
+  SmoothedPose a = s.update(&p, 0.15);
+  CHECK_NEAR(a.opacity, 1, 1e-5);
+  // Source hidden for 2 s: no update calls, then a face far away.
+  SmoothedPose r = s.update(&q, 2.15);
+  CHECK_NEAR(r.pose.cx, 300, 1e-4);
+  CHECK_NEAR(r.opacity, 0, 1e-6);
+  SmoothedPose r2 = s.update(&q, 2.30);
+  CHECK_NEAR(r2.opacity, 1, 1e-5);
+}
