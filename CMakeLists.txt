@@ -53,8 +53,8 @@ endif()
 
 if(NHM_BUILD_PLUGIN)
   find_package(libobs REQUIRED)
-  add_library(norfolk-hacker-mask MODULE src/plugin-main.cpp src/mask-filter.cpp src/frame-grabber.cpp src/obs-image.cpp)
-  target_link_libraries(norfolk-hacker-mask PRIVATE OBS::libobs nhm_tracker)
+  add_library(norfolk-hacker-mask MODULE src/plugin-main.cpp src/mask-filter.cpp src/frame-grabber.cpp src/obs-image.cpp src/background-filter.cpp)
+  target_link_libraries(norfolk-hacker-mask PRIVATE OBS::libobs nhm_tracker nhm_segmenter)
   set_target_properties(norfolk-hacker-mask PROPERTIES PREFIX "")
   target_compile_definitions(norfolk-hacker-mask PRIVATE NHM_VERSION="${PROJECT_VERSION}")
 

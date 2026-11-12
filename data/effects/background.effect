@@ -1,0 +1,154 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform texture2d mask;
+uniform texture2d mill_body;
+uniform texture2d mill_sails;
+uniform float elapsed;
+uniform float aspect;
+uniform float threshold;
+uniform float feather;
+uniform float4 outline_color;
+uniform float outline_on;
+uniform float outline_uv;
+uniform float show_stars;
+uniform float show_galaxy;
+uniform float show_mill;
+uniform float show_grid;
+uniform float debug_mask;
+
+sampler_state lin {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float hash21(float2 p)
+{
+	return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+}
+
+float person(float2 uv)
+{
+	float m = mask.Sample(lin, uv).r;
+	return smoothstep(threshold - feather, threshold + feather + 0.0001, m);
+}
+
+float inside01(float2 t)
+{
+	return step(0.0, t.x) * step(t.x, 1.0) * step(0.0, t.y) * step(t.y, 1.0);
+}
+
+float3 sky(float2 uv, float2 p)
+{
+	float h = saturate(uv.y / 0.62);
+	float3 col = lerp(float3(0.02, 0.0, 0.05), float3(0.22, 0.04, 0.36), h * h);
+
+	float2 d = p - float2(0.72 * aspect, 0.20);
+	float r = length(d) + 0.0001;
+	float a = atan2(d.y, d.x);
+	float arms = 0.5 + 0.5 * sin(2.0 * a - 9.0 * log(r) + elapsed * 0.15);
+	float body = exp(-r * 6.0) * (0.35 + 0.65 * arms * arms);
+	float core = exp(-r * 40.0);
+	col += show_galaxy * (float3(0.55, 0.20, 0.85) * body + float3(1.0, 0.75, 1.0) * core);
+
+	float2 cell = floor(p * 70.0);
+	float2 f = frac(p * 70.0) - 0.5;
+	float n = hash21(cell);
+	float lit = step(0.985, n);
+	float2 off = float2(hash21(cell + 3.1), hash21(cell + 7.7)) - 0.5;
+	float sd = length(f - off * 0.6);
+	float tw = 0.55 + 0.45 * sin(elapsed * (1.5 + n * 3.0) + n * 60.0);
+	col += show_stars * float3(0.9, 0.8, 1.0) * lit * tw * (1.0 - smoothstep(0.0, 0.12, sd));
+	return col;
+}
+
+float3 ground(float2 uv)
+{
+	float d = max(uv.y - 0.62, 0.0005);
+	float3 col = float3(0.03, 0.0, 0.07);
+	float2 g = float2((uv.x - 0.5) * aspect / d, 1.0 / d + elapsed * 0.8);
+	float2 f = abs(frac(g * 0.5) - 0.5);
+	float wx = min(0.004 * aspect / d, 0.5);
+	float wz = min(0.004 / (d * d), 0.5);
+	float lx = 1.0 - smoothstep(0.0, wx, f.x);
+	float lz = 1.0 - smoothstep(0.0, wz, f.y);
+	float lines = max(lx, lz) * smoothstep(0.0, 0.2, d);
+	col += show_grid * float3(0.70, 0.18, 1.0) * lines * 1.4;
+	return col;
+}
+
+float4 windmill(float2 uv)
+{
+	float hm = 0.36;
+	float top = 0.64 - hm;
+	float px = (uv.x - 0.16) * aspect;
+
+	float2 bu = float2(px / (hm * 0.5) + 0.5, (uv.y - top) / hm);
+	float4 acc = mill_body.Sample(lin, bu) * inside01(bu);
+
+	float2 q = float2(px, uv.y - (top + 0.21875 * hm)) / (0.5 * hm);
+	float ang = elapsed * 0.4;
+	float c = cos(ang);
+	float s = sin(ang);
+	float2 su = float2(c * q.x - s * q.y, s * q.x + c * q.y) * 0.5 + 0.5;
+	float4 sl = mill_sails.Sample(lin, su) * inside01(su);
+	return sl + acc * (1.0 - sl.a);
+}
+
+float3 scene(float2 uv)
+{
+	float2 p = float2(uv.x * aspect, uv.y);
+	float3 col = lerp(sky(uv, p), ground(uv), step(0.62, uv.y));
+	col += float3(0.9, 0.3, 1.0) * exp(-abs(uv.y - 0.62) * 60.0);
+	float4 m = windmill(uv) * show_mill;
+	return m.rgb + col * (1.0 - m.a);
+}
+
+float halo(float2 uv)
+{
+	float o = outline_uv;
+	float k = o * 0.7071;
+	float s = person(uv + float2(o, 0.0));
+	s = max(s, person(uv - float2(o, 0.0)));
+	s = max(s, person(uv + float2(0.0, o)));
+	s = max(s, person(uv - float2(0.0, o)));
+	s = max(s, person(uv + float2(k, k)));
+	s = max(s, person(uv - float2(k, k)));
+	s = max(s, person(uv + float2(k, -k)));
+	s = max(s, person(uv - float2(k, -k)));
+	return s;
+}
+
+float4 PSDraw(VertInOut vert_in) : TARGET
+{
+	float2 uv = vert_in.uv;
+	float a = person(uv);
+	float3 cam = image.Sample(lin, uv).rgb;
+	float3 col = lerp(scene(uv), cam, a);
+	float ring = saturate(halo(uv) - a) * outline_on;
+	col += outline_color.rgb * ring * 1.5;
+	col = lerp(col, float3(a, a, a), debug_mask);
+	return float4(col, 1.0);
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDraw(vert_in);
+	}
+}
