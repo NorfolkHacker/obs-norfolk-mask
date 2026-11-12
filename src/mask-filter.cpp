@@ -6,7 +6,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include "frame-grabber.hpp"
 #include "layout.hpp"
+#include "obs-image.hpp"
 #include "pose.hpp"
 #include "smoother.hpp"
 #include "tracker.hpp"
@@ -20,12 +22,7 @@ constexpr const char *kTag = "[norfolk-hacker-mask]";
 
 struct MaskFilter {
   obs_source_t *ctx = nullptr;
-  gs_texrender_t *full_tr = nullptr;
-  gs_texrender_t *small_tr = nullptr;
-  gs_stagesurf_t *stage = nullptr;
-  uint32_t stage_w = 0, stage_h = 0;
-  bool stage_pending = false;
-  float stage_to_src = 1.f;
+  FrameGrabber grabber;
 
   gs_effect_t *effect = nullptr;
   gs_image_file3_t plate{}, ear_l{}, ear_r{};
@@ -46,16 +43,6 @@ struct MaskFilter {
   double last_render = -1;
   uint64_t stale_seq = 0;
 };
-
-void load_image(gs_image_file3_t *img, const char *name) {
-  char *path = obs_module_file(name);
-  gs_image_file3_init(img, path, GS_IMAGE_ALPHA_PREMULTIPLY);
-  obs_enter_graphics();
-  gs_image_file3_init_texture(img);
-  obs_leave_graphics();
-  if (!img->image2.image.loaded) blog(LOG_WARNING, "%s failed to load image %s", kTag, path ? path : name);
-  bfree(path);
-}
 
 const char *mf_get_name(void *) { return "Norfolk Hacker Mask"; }
 
@@ -104,14 +91,12 @@ void *mf_create(obs_data_t *settings, obs_source_t *source) {
     blog(LOG_WARNING, "%s could not load face model (%s); passing video through", kTag, model ? model : "missing");
   bfree(model);
 
-  load_image(&f->plate, "faceplate.png");
-  load_image(&f->ear_l, "headphone_l.png");
-  load_image(&f->ear_r, "headphone_r.png");
+  load_module_image(&f->plate, "faceplate.png", kTag);
+  load_module_image(&f->ear_l, "headphone_l.png", kTag);
+  load_module_image(&f->ear_r, "headphone_r.png", kTag);
 
   char *fx = obs_module_file("effects/mask.effect");
   obs_enter_graphics();
-  f->full_tr = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
-  f->small_tr = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
   char *err = nullptr;
   f->effect = fx ? gs_effect_create_from_file(fx, &err) : nullptr;
   if (!f->effect) blog(LOG_WARNING, "%s failed to load effect: %s", kTag, err ? err : "file not found");
@@ -126,9 +111,7 @@ void *mf_create(obs_data_t *settings, obs_source_t *source) {
 void mf_destroy(void *data) {
   auto *f = static_cast<MaskFilter *>(data);
   obs_enter_graphics();
-  gs_texrender_destroy(f->full_tr);
-  gs_texrender_destroy(f->small_tr);
-  gs_stagesurface_destroy(f->stage);
+  f->grabber.release();
   gs_effect_destroy(f->effect);
   gs_image_file3_free(&f->plate);
   gs_image_file3_free(&f->ear_l);
@@ -210,32 +193,14 @@ void mf_render(void *data, gs_effect_t *) {
     return;
   }
 
-  // 1. Hand last frame's staged pixels to the tracker (mapping a frame late avoids a GPU stall).
-  if (f->stage_pending) {
-    uint8_t *px = nullptr;
-    uint32_t linesize = 0;
-    if (gs_stagesurface_map(f->stage, &px, &linesize)) {
-      f->tracker.submit(px, static_cast<int>(f->stage_w), static_cast<int>(f->stage_h), static_cast<int>(linesize),
-                        f->stage_to_src);
-      gs_stagesurface_unmap(f->stage);
-    }
-    f->stage_pending = false;
-  }
+  // 1. Hand last frame's staged pixels to the tracker.
+  f->grabber.take([&](const FrameGrabber::Staged &s) {
+    f->tracker.submit(s.rgba, static_cast<int>(s.width), static_cast<int>(s.height), static_cast<int>(s.linesize),
+                      static_cast<float>(s.src_width) / static_cast<float>(s.width));
+  });
 
   // 2. Capture the source at full size.
-  gs_texrender_reset(f->full_tr);
-  gs_blend_state_push();
-  gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-  if (gs_texrender_begin(f->full_tr, w, h)) {
-    struct vec4 clear;
-    vec4_zero(&clear);
-    gs_clear(GS_CLEAR_COLOR, &clear, 0.f, 0);
-    gs_ortho(0.f, static_cast<float>(w), 0.f, static_cast<float>(h), -100.f, 100.f);
-    obs_source_video_render(target);
-    gs_texrender_end(f->full_tr);
-  }
-  gs_blend_state_pop();
-  gs_texture_t *tex = gs_texrender_get_texture(f->full_tr);
+  gs_texture_t *tex = f->grabber.capture(target, w, h);
   if (!tex) {
     obs_source_skip_video_filter(f->ctx);
     return;
@@ -246,25 +211,7 @@ void mf_render(void *data, gs_effect_t *) {
   if (f->tracker.loaded()) {
     const uint32_t sw = std::min(kDetectWidth, w);
     const uint32_t sh = std::max(1u, static_cast<uint32_t>(std::lround(static_cast<double>(h) * sw / w)));
-    if (!f->stage || f->stage_w != sw || f->stage_h != sh) {
-      gs_stagesurface_destroy(f->stage);
-      f->stage = gs_stagesurface_create(sw, sh, GS_RGBA);
-      f->stage_w = sw;
-      f->stage_h = sh;
-    }
-    gs_texrender_reset(f->small_tr);
-    if (f->stage && gs_texrender_begin(f->small_tr, sw, sh)) {
-      gs_ortho(0.f, static_cast<float>(sw), 0.f, static_cast<float>(sh), -100.f, 100.f);
-      gs_blend_state_push();
-      gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-      gs_effect_set_texture(gs_effect_get_param_by_name(def, "image"), tex);
-      while (gs_effect_loop(def, "Draw")) gs_draw_sprite(tex, 0, sw, sh);
-      gs_blend_state_pop();
-      gs_texrender_end(f->small_tr);
-      gs_stage_texture(f->stage, gs_texrender_get_texture(f->small_tr));
-      f->stage_to_src = static_cast<float>(w) / static_cast<float>(sw);
-      f->stage_pending = true;
-    }
+    f->grabber.stage(tex, w, h, sw, sh);
   }
 
   // 4. Draw the camera image.
