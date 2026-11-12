@@ -208,12 +208,122 @@ def make_headphone(path, mirror):
     s.write_to_png(path)
 
 
+MILL_W, MILL_H = 256, 512
+MILL_HUB = (128, 112)
+SAILS_SIZE = 512
+SILHOUETTE = (0.06, 0.02, 0.11)
+
+
+def tower_outline(c):
+    c.move_to(80, 150)    # top-left of tower under the cap
+    c.line_to(176, 150)
+    c.line_to(212, 500)
+    c.line_to(44, 500)
+    c.close_path()
+
+
+def cap_outline(c):
+    c.move_to(66, 156)
+    c.curve_to(66, 92, 190, 92, 190, 156)
+    c.close_path()
+
+
+def make_windmill_body(path):
+    s = cairo.ImageSurface(cairo.FORMAT_ARGB32, MILL_W, MILL_H)
+    c = cairo.Context(s)
+    # Tower with a faint purple sheen toward the sky side
+    g = cairo.LinearGradient(44, 0, 212, 0)
+    g.add_color_stop_rgb(0, 0.10, 0.04, 0.18)
+    g.add_color_stop_rgb(1, *SILHOUETTE)
+    tower_outline(c)
+    c.set_source(g)
+    c.fill()
+    # Cap and fantail (fan on a frame at the back of the cap)
+    cap_outline(c)
+    c.set_source_rgb(*SILHOUETTE)
+    c.fill()
+    c.set_source_rgb(*SILHOUETTE)
+    c.set_line_width(4)
+    c.move_to(176, 140)
+    c.line_to(226, 168)
+    c.stroke()
+    for k in range(6):
+        a = k * TAU / 6
+        c.move_to(226, 168)
+        c.line_to(226 + 18 * math.cos(a), 168 + 18 * math.sin(a))
+        c.stroke()
+    # Gallery rail, door and lit windows
+    c.set_line_width(5)
+    c.move_to(58, 300)
+    c.line_to(198, 300)
+    c.stroke()
+    c.set_source_rgb(0.02, 0.0, 0.04)
+    rounded_rect(c, 112, 440, 32, 60, 14)
+    c.fill()
+    for wx, wy in ((128, 220), (112, 360), (146, 360)):
+        c.set_source_rgba(*PURPLE, 0.9)
+        rounded_rect(c, wx - 7, wy - 10, 14, 20, 5)
+        c.fill()
+    # Neon rim
+    neon_stroke(c, tower_outline, PURPLE, 2.5)
+    neon_stroke(c, cap_outline, PURPLE, 2.5)
+    # Hub boss (sails are drawn separately, rotating around MILL_HUB)
+    hx, hy = MILL_HUB
+    c.new_path()
+    c.arc(hx, hy, 10, 0, TAU)
+    c.set_source_rgb(*SILHOUETTE)
+    c.fill()
+    s.write_to_png(path)
+
+
+def make_windmill_sails(path):
+    s = cairo.ImageSurface(cairo.FORMAT_ARGB32, SAILS_SIZE, SAILS_SIZE)
+    c = cairo.Context(s)
+    cx = cy = SAILS_SIZE / 2
+    c.translate(cx, cy)
+    for k in range(4):
+        c.save()
+        c.rotate(k * TAU / 4)
+        # Stock (arm) from the hub outwards along -y
+        c.set_source_rgb(*SILHOUETTE)
+        rounded_rect(c, -5, -240, 10, 240, 4)
+        c.fill()
+
+        def frame(ctx):
+            ctx.rectangle(5, -236, 44, 180)
+
+        # Lattice: sail frame on one side of the stock with bars across
+        c.set_source_rgba(*SILHOUETTE, 0.85)
+        frame(c)
+        c.fill()
+        c.set_source_rgba(0.35, 0.10, 0.55, 0.9)
+        c.set_line_width(2)
+        for i in range(1, 9):
+            y = -236 + i * 20
+            c.move_to(5, y)
+            c.line_to(49, y)
+            c.stroke()
+        c.move_to(27, -236)
+        c.line_to(27, -56)
+        c.stroke()
+        neon_stroke(c, frame, PURPLE, 2)
+        c.restore()
+    c.new_path()
+    c.arc(0, 0, 12, 0, TAU)
+    c.set_source_rgb(*SILHOUETTE)
+    c.fill()
+    neon_stroke(c, lambda ctx: ctx.arc(0, 0, 12, 0, TAU), PURPLE, 2)
+    s.write_to_png(path)
+
+
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else "data"
     os.makedirs(out, exist_ok=True)
     make_plate(os.path.join(out, "faceplate.png"))
     make_headphone(os.path.join(out, "headphone_l.png"), mirror=False)
     make_headphone(os.path.join(out, "headphone_r.png"), mirror=True)
+    make_windmill_body(os.path.join(out, "windmill_body.png"))
+    make_windmill_sails(os.path.join(out, "windmill_sails.png"))
 
 
 if __name__ == "__main__":
