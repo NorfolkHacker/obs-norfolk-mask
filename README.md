@@ -26,6 +26,22 @@ Restart OBS, then on your camera source: **Filters → + → Norfolk Hacker Mask
 | Show headphones | Toggle the headphones |
 | Debug: show tracking points | Green dots on the 5 detected points |
 
+## Background filter
+
+Add **Norfolk Hacker Background** to the same camera source, *above* Norfolk
+Hacker Mask. It cuts you out with PP-HumanSeg and replaces the room with an
+animated synthwave Norfolk scene (stars, galaxy, windmill, neon grid) with a
+purple neon outline around you.
+
+| Setting | What it does |
+|---|---|
+| Edge threshold / Edge softness | Where and how softly the cut-out edge falls |
+| Mask smoothing | Higher = steadier edges, more lag on fast moves |
+| Neon outline / colour / width | Glow around your outline |
+| Animation speed | Scene motion (0 = still) |
+| Stars / Galaxy / Windmill / Neon grid | Toggle scene elements |
+| Debug: show cut-out | Shows the raw person mask |
+
 ## Artwork
 
 `python3 art/make_art.py data/` regenerates the PNGs. Anchors must match `src/layout.hpp`.
@@ -41,3 +57,5 @@ Restart OBS, then on your camera source: **Filters → + → Norfolk Hacker Mask
 Face detection: YuNet (`face_detection_yunet_2023mar.onnx`) from
 [opencv_zoo](https://github.com/opencv/opencv_zoo), MIT licence.
 Test photo `tests/data/messi5.jpg` from OpenCV sample data.
+
+Person segmentation: PP-HumanSeg (human_segmentation_pphumanseg_2023mar.onnx) from opencv_zoo, Apache-2.0.
