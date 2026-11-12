@@ -1,7 +1,9 @@
 #include <graphics/image-file.h>
 #include <graphics/vec4.h>
 #include <obs-module.h>
+#include <util/platform.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -30,6 +32,13 @@ struct BackgroundFilter {
   SegResult latest;
   std::vector<uint8_t> mask_u8;
   uint64_t last_seq = 0;
+
+  // OBS does not render hidden sources. After a gap the staged frame, the segmenter's
+  // latest result and mask_tex are all pre-gap, so drop them and show passthrough
+  // until a result newer than stale_seq arrives.
+  double last_render = -1;
+  uint64_t stale_seq = 0;
+  bool waiting_fresh = false;
 
   float threshold = 0.5f, feather = 0.08f, mask_smoothing = 0.5f;
   bool outline = true;
@@ -151,6 +160,18 @@ void bf_render(void *data, gs_effect_t *) {
     return;
   }
 
+  // 0. Render gap: discard everything computed before it.
+  const double now = static_cast<double>(os_gettime_ns()) / 1e9;
+  if (f->last_render >= 0 && now - f->last_render > 0.25) {
+    f->grabber.drop_pending();
+    SegResult tmp;
+    f->segmenter.latest_if_newer(f->last_seq, tmp);  // skip over any pre-gap result
+    f->last_seq = f->stale_seq = std::max(f->last_seq, tmp.seq);
+    f->smoother.reset();  // next fresh result snaps instead of blending into the old mask
+    f->waiting_fresh = true;
+  }
+  f->last_render = now;
+
   // 1. Hand last frame's 192x192 copy to the segmenter.
   f->grabber.take([&](const FrameGrabber::Staged &s) {
     f->segmenter.submit(s.rgba, static_cast<int>(s.width), static_cast<int>(s.height), static_cast<int>(s.linesize));
@@ -167,6 +188,7 @@ void bf_render(void *data, gs_effect_t *) {
   // 3. New segmentation result → smooth → upload.
   if (f->segmenter.latest_if_newer(f->last_seq, f->latest)) {
     f->last_seq = f->latest.seq;
+    if (f->latest.seq > f->stale_seq) f->waiting_fresh = false;
     f->smoother.set_smoothing(f->mask_smoothing);
     to_u8(f->smoother.update(f->latest.alpha.data(), f->latest.w, f->latest.h), f->mask_u8);
     if (!f->mask_tex) f->mask_tex = gs_texture_create(kSeg, kSeg, GS_R8, 1, nullptr, GS_DYNAMIC);
@@ -179,8 +201,8 @@ void bf_render(void *data, gs_effect_t *) {
   gs_blend_state_push();
   gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 
-  if (!f->mask_tex) {
-    // No segmentation yet: plain passthrough.
+  if (!f->mask_tex || f->waiting_fresh) {
+    // No (fresh) segmentation yet: plain passthrough.
     gs_effect_t *def = obs_get_base_effect(OBS_EFFECT_DEFAULT);
     gs_effect_set_texture(gs_effect_get_param_by_name(def, "image"), tex);
     while (gs_effect_loop(def, "Draw")) gs_draw_sprite(tex, 0, w, h);

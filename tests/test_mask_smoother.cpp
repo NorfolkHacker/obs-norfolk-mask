@@ -68,3 +68,13 @@ TEST(to_u8_rounds_and_clamps) {
   CHECK(out[3] == 255);
   CHECK(out[4] == 255);
 }
+
+TEST(reset_makes_next_update_snap) {
+  MaskSmoother s(0.9f);
+  const float zero[1] = {0}, one[1] = {1};
+  s.update(zero, 1, 1);
+  s.update(zero, 1, 1);
+  s.reset();
+  CHECK(s.empty());
+  CHECK_NEAR(s.update(one, 1, 1)[0], 1.0, 1e-6);
+}

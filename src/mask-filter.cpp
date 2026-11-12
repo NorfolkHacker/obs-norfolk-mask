@@ -193,6 +193,14 @@ void mf_render(void *data, gs_effect_t *) {
     return;
   }
 
+  // 0. Render gap: the staged frame and the tracker's latest result are pre-gap.
+  const double now = static_cast<double>(os_gettime_ns()) / 1e9;
+  if (f->last_render >= 0 && now - f->last_render > 0.25) {
+    f->grabber.drop_pending();
+    f->stale_seq = f->tracker.latest().seq;
+  }
+  f->last_render = now;
+
   // 1. Hand last frame's staged pixels to the tracker.
   f->grabber.take([&](const FrameGrabber::Staged &s) {
     f->tracker.submit(s.rgba, static_cast<int>(s.width), static_cast<int>(s.height), static_cast<int>(s.linesize),
@@ -223,9 +231,6 @@ void mf_render(void *data, gs_effect_t *) {
 
   // 5. Pose → smoothing → mask.
   const TrackResult r = f->tracker.latest();
-  const double now = static_cast<double>(os_gettime_ns()) / 1e9;
-  if (f->last_render >= 0 && now - f->last_render > 0.25) f->stale_seq = r.seq;
-  f->last_render = now;
   const bool fresh = r.seq > f->stale_seq;
   MaskPose pose;
   const MaskPose *target_pose = nullptr;

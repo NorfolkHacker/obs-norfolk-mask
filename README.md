@@ -55,7 +55,7 @@ purple neon outline around you.
 ## Credits
 
 Face detection: YuNet (`face_detection_yunet_2023mar.onnx`) from
-[opencv_zoo](https://github.com/opencv/opencv_zoo), MIT licence.
+[opencv_zoo](https://github.com/opencv/opencv_zoo), MIT licence (see `data/models/LICENSE`).
 Test photo `tests/data/messi5.jpg` from OpenCV sample data.
 
-Person segmentation: PP-HumanSeg (human_segmentation_pphumanseg_2023mar.onnx) from opencv_zoo, Apache-2.0.
+Person segmentation: PP-HumanSeg (human_segmentation_pphumanseg_2023mar.onnx) from opencv_zoo, Apache-2.0 (see `data/models/LICENSE-pphumanseg`).

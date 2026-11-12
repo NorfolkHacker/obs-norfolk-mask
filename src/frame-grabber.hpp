@@ -33,6 +33,9 @@ class FrameGrabber {
     return true;
   }
 
+  // Discards the staged copy, e.g. after a render gap.
+  void drop_pending() { pending_ = false; }
+
   // Renders target at w x h. Returns nullptr if rendering failed.
   gs_texture_t *capture(obs_source_t *target, uint32_t w, uint32_t h);
   // Downscales tex (w x h) to sw x sh and queues it for take() on the next frame.

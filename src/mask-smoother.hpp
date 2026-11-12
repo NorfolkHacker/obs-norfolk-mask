@@ -13,6 +13,8 @@ class MaskSmoother {
   // Blends a new w x h result in (snaps on the first result or a size change).
   // Null or empty input leaves the current mask unchanged. Returns the current mask.
   const std::vector<float> &update(const float *fresh, int w, int h);
+  // Forgets the current mask so the next update snaps.
+  void reset() { cur_.clear(); w_ = h_ = 0; }
   int width() const { return w_; }
   int height() const { return h_; }
   bool empty() const { return cur_.empty(); }
