@@ -12,8 +12,25 @@ add_library(nhm_core STATIC src/pose.cpp src/smoother.cpp src/layout.cpp)
 target_include_directories(nhm_core PUBLIC src)
 target_compile_options(nhm_core PRIVATE -Wall -Wextra)
 
+find_package(OpenCV 4.5.4 REQUIRED COMPONENTS core imgproc imgcodecs objdetect dnn)
+find_package(Threads REQUIRED)
+
+add_library(nhm_tracker STATIC src/tracker.cpp)
+target_include_directories(nhm_tracker PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(nhm_tracker PUBLIC nhm_core ${OpenCV_LIBS} Threads::Threads)
+target_compile_options(nhm_tracker PRIVATE -Wall -Wextra)
+
+add_executable(mask-preview tools/mask-preview.cpp)
+target_link_libraries(mask-preview PRIVATE nhm_tracker)
+
 if(BUILD_TESTING)
   add_executable(test_core tests/test_main.cpp tests/test_pose.cpp tests/test_smoother.cpp tests/test_layout.cpp)
   target_link_libraries(test_core PRIVATE nhm_core)
   add_test(NAME core COMMAND test_core)
+  add_executable(test_tracker tests/test_main.cpp tests/test_tracker.cpp)
+  target_link_libraries(test_tracker PRIVATE nhm_tracker)
+  target_compile_definitions(test_tracker PRIVATE
+    NHM_MODEL="${CMAKE_SOURCE_DIR}/data/models/face_detection_yunet_2023mar.onnx"
+    NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/messi5.jpg")
+  add_test(NAME tracker COMMAND test_tracker)
 endif()
