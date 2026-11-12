@@ -1,0 +1,60 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float opacity;
+uniform float4 glow_color;
+uniform float intensity;
+
+sampler_state def_sampler {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+// Premultiplied-alpha sprite, faded by opacity.
+float4 PSSprite(VertInOut vert_in) : TARGET
+{
+	return image.Sample(def_sampler, vert_in.uv) * opacity;
+}
+
+// Radial neon glow over the quad; additive blending.
+float4 PSGlow(VertInOut vert_in) : TARGET
+{
+	float2 d = vert_in.uv * 2.0 - 1.0;
+	float r = length(d);
+	float core = 1.0 - smoothstep(0.0, 0.35, r);
+	float halo = pow(saturate(1.0 - r), 2.5);
+	float a = saturate(core + halo * 0.8) * intensity * opacity;
+	float3 c = lerp(glow_color.rgb, float3(1.0, 1.0, 1.0), core * 0.6);
+	return float4(c * a, a);
+}
+
+technique Sprite
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSSprite(vert_in);
+	}
+}
+
+technique Glow
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSGlow(vert_in);
+	}
+}

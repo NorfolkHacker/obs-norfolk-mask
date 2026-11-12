@@ -34,3 +34,15 @@ if(BUILD_TESTING)
     NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/messi5.jpg")
   add_test(NAME tracker COMMAND test_tracker)
 endif()
+
+if(NHM_BUILD_PLUGIN)
+  find_package(libobs REQUIRED)
+  add_library(norfolk-hacker-mask MODULE src/plugin-main.cpp src/mask-filter.cpp)
+  target_link_libraries(norfolk-hacker-mask PRIVATE OBS::libobs nhm_tracker)
+  set_target_properties(norfolk-hacker-mask PROPERTIES PREFIX "")
+
+  set(NHM_INSTALL_DIR "$ENV{HOME}/.config/obs-studio/plugins/norfolk-hacker-mask"
+      CACHE PATH "Per-user OBS plugin directory")
+  install(TARGETS norfolk-hacker-mask LIBRARY DESTINATION "${NHM_INSTALL_DIR}/bin/64bit")
+  install(DIRECTORY data/ DESTINATION "${NHM_INSTALL_DIR}/data")
+endif()
