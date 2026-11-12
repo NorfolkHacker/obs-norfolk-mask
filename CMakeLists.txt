@@ -8,7 +8,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(NHM_BUILD_PLUGIN "Build the OBS plugin" ON)
 include(CTest)
 
-add_library(nhm_core STATIC src/pose.cpp src/smoother.cpp src/layout.cpp)
+add_library(nhm_core STATIC src/pose.cpp src/smoother.cpp src/layout.cpp src/mask-smoother.cpp)
 target_include_directories(nhm_core PUBLIC src)
 target_compile_options(nhm_core PRIVATE -Wall -Wextra)
 
@@ -24,7 +24,7 @@ add_executable(mask-preview tools/mask-preview.cpp)
 target_link_libraries(mask-preview PRIVATE nhm_tracker)
 
 if(BUILD_TESTING)
-  add_executable(test_core tests/test_main.cpp tests/test_pose.cpp tests/test_smoother.cpp tests/test_layout.cpp)
+  add_executable(test_core tests/test_main.cpp tests/test_pose.cpp tests/test_smoother.cpp tests/test_layout.cpp tests/test_mask_smoother.cpp)
   target_link_libraries(test_core PRIVATE nhm_core)
   add_test(NAME core COMMAND test_core)
   add_executable(test_tracker tests/test_main.cpp tests/test_tracker.cpp)
