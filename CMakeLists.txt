@@ -23,6 +23,13 @@ target_compile_options(nhm_tracker PRIVATE -Wall -Wextra)
 add_executable(mask-preview tools/mask-preview.cpp)
 target_link_libraries(mask-preview PRIVATE nhm_tracker)
 
+add_library(nhm_segmenter STATIC src/segmenter.cpp)
+target_link_libraries(nhm_segmenter PUBLIC nhm_tracker)
+target_compile_options(nhm_segmenter PRIVATE -Wall -Wextra)
+
+add_executable(bg-preview tools/bg-preview.cpp)
+target_link_libraries(bg-preview PRIVATE nhm_segmenter)
+
 if(BUILD_TESTING)
   add_executable(test_core tests/test_main.cpp tests/test_pose.cpp tests/test_smoother.cpp tests/test_layout.cpp tests/test_mask_smoother.cpp)
   target_link_libraries(test_core PRIVATE nhm_core)
@@ -36,6 +43,12 @@ if(BUILD_TESTING)
   add_executable(test_frame_worker tests/test_main.cpp tests/test_frame_worker.cpp)
   target_link_libraries(test_frame_worker PRIVATE nhm_tracker)
   add_test(NAME frame_worker COMMAND test_frame_worker)
+  add_executable(test_segmenter tests/test_main.cpp tests/test_segmenter.cpp)
+  target_link_libraries(test_segmenter PRIVATE nhm_segmenter)
+  target_compile_definitions(test_segmenter PRIVATE
+    NHM_SEG_MODEL="${CMAKE_SOURCE_DIR}/data/models/human_segmentation_pphumanseg_2023mar.onnx"
+    NHM_FACE_IMG="${CMAKE_SOURCE_DIR}/tests/data/messi5.jpg")
+  add_test(NAME segmenter COMMAND test_segmenter)
 endif()
 
 if(NHM_BUILD_PLUGIN)
